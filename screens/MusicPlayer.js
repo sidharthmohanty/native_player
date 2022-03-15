@@ -26,14 +26,57 @@ import TrackPlayer, {
 
 const {width, height} = Dimensions.get('window');
 const MusicPlayer = () => {
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const progress = useProgress();
+  const playBackState = usePlaybackState();
   const [songIndex, setSongIndex] = useState(0);
+
+  // custom references
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const songSlider = useRef(null);
+
   useEffect(() => {
+    setUpPlayer();
     scrollX.addListener(({value}) => {
       const index = Math.round(value / width);
       setSongIndex(index);
     });
   }, []);
+  const setUpPlayer = async () => {
+    try {
+      await TrackPlayer.setupPlayer();
+      await TrackPlayer.add(songs);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const togglePlayBack = async playBackState => {
+    const currentTrack = await TrackPlayer.getCurrentTrack();
+    if (currentTrack != null) {
+      if (playBackState == State.Paused) {
+        console.log(currentTrack);
+        console.log('playing');
+
+        await TrackPlayer.play();
+      } else {
+        console.log('pausing');
+        await TrackPlayer.pause();
+      }
+    } else {
+      console.log('no tracks found');
+    }
+  };
+
+  const skipToNext = () => {
+    songSlider.current.scrollToOffset({
+      offset: (songIndex + 1) * width,
+    });
+  };
+  const skipToPrev = () => {
+    songSlider.current.scrollToOffset({
+      offset: (songIndex - 1) * width,
+    });
+  };
   const renderSongs = ({item, index}) => {
     return (
       <Animated.View style={style.mainImageWrapper}>
@@ -83,14 +126,14 @@ const MusicPlayer = () => {
 
         <View>
           <Slider
-            value={10}
+            value={progress.position}
             style={style.progressBar}
             minimumValue={0}
-            maximumValue={100}
+            maximumValue={progress.duration}
             thumbTintColor="#FFD369"
             minimumTrackTintColor="#FFD369"
             maximumTrackTintColor="#fff"
-            onSlidingComplete={() => {}}
+            onSlidingComplete={async value => await TrackPlayer.seekTo(value)}
           />
         </View>
 
@@ -101,13 +144,21 @@ const MusicPlayer = () => {
         </View>
         {/* music controls */}
         <View style={style.musicControlsContainer}>
-          <TouchableOpacity onPress={() => {}}>
+          <TouchableOpacity onPress={skipToPrev}>
             <Ionicons name="play-skip-back-outline" size={35} color="#FFD369" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {}}>
-            <Ionicons name="ios-pause-circle" size={75} color="#FFD369" />
+          <TouchableOpacity onPress={() => togglePlayBack(playBackState)}>
+            <Ionicons
+              name={
+                playBackState === State.Playing
+                  ? 'ios-pause-circle'
+                  : 'ios-play-circle'
+              }
+              size={75}
+              color="#FFD369"
+            />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {}}>
+          <TouchableOpacity onPress={skipToNext}>
             <Ionicons
               name="play-skip-forward-outline"
               size={30}
