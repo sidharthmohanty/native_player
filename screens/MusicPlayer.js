@@ -29,7 +29,9 @@ const MusicPlayer = () => {
   const progress = useProgress();
   const playBackState = usePlaybackState();
   const [songIndex, setSongIndex] = useState(0);
-
+  const [trackTitle, setTrackTitle] = useState();
+  const [trackArtist, setTrackArtist] = useState();
+  const [trackArtwork, setTrackArtwork] = useState();
   // custom references
   const scrollX = useRef(new Animated.Value(0)).current;
   const songSlider = useRef(null);
@@ -38,9 +40,14 @@ const MusicPlayer = () => {
     setUpPlayer();
     scrollX.addListener(({value}) => {
       const index = Math.round(value / width);
+      skipTo(index);
       setSongIndex(index);
     });
+    return () => {
+      scrollX.removeAllListeners();
+    };
   }, []);
+
   const setUpPlayer = async () => {
     try {
       await TrackPlayer.setupPlayer();
@@ -48,6 +55,20 @@ const MusicPlayer = () => {
     } catch (e) {
       console.log(e);
     }
+  };
+
+  useTrackPlayerEvents([Event.PlaybackTrackChanged], async event => {
+    if (event.type === Event.PlaybackTrackChanged && event.nextTrack !== null) {
+      const track = await TrackPlayer.getTrack(event.nextTrack);
+      const {title, artwork, artist} = track;
+      setTrackTitle(title);
+      setTrackArtist(artist);
+      setTrackArtwork(artwork);
+    }
+  });
+
+  const skipTo = async trackId => {
+    await TrackPlayer.skip(trackId);
   };
 
   const togglePlayBack = async playBackState => {
@@ -72,7 +93,8 @@ const MusicPlayer = () => {
       offset: (songIndex + 1) * width,
     });
   };
-  const skipToPrev = () => {
+
+  const skipToPrevious = () => {
     songSlider.current.scrollToOffset({
       offset: (songIndex - 1) * width,
     });
@@ -81,7 +103,7 @@ const MusicPlayer = () => {
     return (
       <Animated.View style={style.mainImageWrapper}>
         <View style={[style.imageWrapper, style.elevation]}>
-          <Image source={item.artwork} style={style.musicImage} />
+          <Image source={trackArtwork} style={style.musicImage} />
         </View>
       </Animated.View>
     );
@@ -91,6 +113,7 @@ const MusicPlayer = () => {
     <SafeAreaView style={style.container}>
       <View style={style.maincontainer}>
         <Animated.FlatList
+          ref={songSlider}
           renderItem={renderSongs}
           data={songs}
           keyExtractor={item => item.id}
@@ -139,12 +162,18 @@ const MusicPlayer = () => {
 
         {/* Music progress duration */}
         <View style={style.progressLevelDuration}>
-          <Text style={style.progressLevelText}>00:00</Text>
-          <Text style={style.progressLevelText}>00:00</Text>
+          <Text style={style.progressLevelText}>
+            {new Date(progress.position).toLocaleTimeString().substring(4)}
+          </Text>
+          <Text style={style.progressLevelText}>
+            {new Date(progress.duration - progress.position)
+              .toLocaleTimeString()
+              .substring(4)}
+          </Text>
         </View>
         {/* music controls */}
         <View style={style.musicControlsContainer}>
-          <TouchableOpacity onPress={skipToPrev}>
+          <TouchableOpacity onPress={skipToPrevious}>
             <Ionicons name="play-skip-back-outline" size={35} color="#FFD369" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => togglePlayBack(playBackState)}>
