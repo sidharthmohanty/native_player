@@ -47,15 +47,22 @@ const MusicPlayer = () => {
     });
     return () => {
       scrollX.removeAllListeners();
+      TrackPlayer.destroy();
     };
   }, []);
 
   const setUpPlayer = async () => {
     try {
       await TrackPlayer.setupPlayer();
-      // await TrackPlayer.updateOptions({
-      //   capabilities:
-      // })
+      await TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Stop,
+        ],
+      });
       await TrackPlayer.add(songs);
     } catch (e) {
       console.log(e);
